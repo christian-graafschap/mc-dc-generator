@@ -1,0 +1,1146 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>MC/DC — Modified Condition/Decision Coverage</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Educatief hulpmiddel voor MC/DC (Modified Condition/Decision Coverage) testcase-ontwerp. Voor MBO-4 SD.">
+<style>
+  :root {
+    --bg: #fafaf7;
+    --surface: #ffffff;
+    --surface-alt: #f3f3ef;
+    --text: #1d1d1f;
+    --muted: #5f5f63;
+    --border: #d4d4d4;
+    --border-strong: #9a9a9e;
+    --accent: #1e40af;
+    --accent-bg: #eff6ff;
+    --error: #991b1b;
+    --error-bg: #fee2e2;
+    --warning: #92400e;
+    --warning-bg: #fef3c7;
+    --success: #065f46;
+    --success-bg: #d1fae5;
+    --true: #047857;
+    --false: #b91c1c;
+    --true-bg: #ecfdf5;
+    --false-bg: #fef2f2;
+    --adjust: #b45309;
+    --adjust-bg: #fffbeb;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+  }
+  code, .mono, kbd, samp, pre {
+    font-family: "JetBrains Mono", "Cascadia Code", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.95em;
+  }
+
+  header.app-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 1.4rem 1.5rem 1.1rem;
+  }
+  header.app-header .inner { max-width: 1100px; margin: 0 auto; }
+  header.app-header h1 { margin: 0; font-size: 1.6rem; letter-spacing: -0.01em; }
+  header.app-header .subtitle { margin: 0.25rem 0 0; color: var(--muted); font-size: 0.95rem; }
+
+  main { max-width: 1100px; margin: 0 auto; padding: 1.25rem 1.5rem 2rem; }
+
+  details.section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+  }
+  details.section > summary {
+    cursor: pointer;
+    padding: 0.85rem 1.25rem;
+    font-size: 1.15rem;
+    font-weight: 600;
+    background: var(--surface);
+    list-style: none;
+    user-select: none;
+    border-bottom: 1px solid transparent;
+  }
+  details.section[open] > summary { border-bottom-color: var(--border); }
+  details.section > summary::-webkit-details-marker { display: none; }
+  details.section > summary::before {
+    content: "▸";
+    display: inline-block;
+    margin-right: 0.5rem;
+    color: var(--muted);
+    transition: transform 0.15s ease;
+    font-size: 0.9em;
+  }
+  details.section[open] > summary::before { transform: rotate(90deg); }
+  details.section > .body { padding: 1rem 1.25rem 1.25rem; }
+
+  details.section h3 { margin-top: 1.25rem; margin-bottom: 0.4rem; font-size: 1.02rem; }
+  details.section p { margin: 0.5rem 0; }
+  details.section ul, details.section ol { padding-left: 1.4rem; margin: 0.4rem 0; }
+  details.section li { margin: 0.25rem 0; }
+
+  .hint { color: var(--muted); font-size: 0.9rem; }
+
+  /* --- Condities --- */
+  .cond-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.45rem;
+  }
+  .cond-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 2rem;
+    height: 2rem;
+    border-radius: 4px;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-weight: 700;
+    font-size: 1rem;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-alt);
+    color: var(--text);
+  }
+  .cond-desc {
+    flex: 1;
+    min-width: 0;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font: inherit;
+    background: var(--bg);
+  }
+  .cond-desc:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+  .btn-remove {
+    flex: 0 0 2rem;
+    height: 2rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.05rem;
+    line-height: 1;
+  }
+  .btn-remove:hover:not(:disabled) { background: var(--error-bg); color: var(--error); border-color: var(--error); }
+  .btn-remove:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  #add-condition {
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.85rem;
+    background: var(--accent-bg);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 4px;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+  }
+  #add-condition:hover:not(:disabled) { background: #dbeafe; }
+  #add-condition:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* --- Expressie --- */
+  #expr-input {
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 1.05rem;
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+  }
+  #expr-input:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+
+  .error {
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.8rem;
+    background: var(--error-bg);
+    color: var(--error);
+    border-left: 3px solid var(--error);
+    border-radius: 0 4px 4px 0;
+  }
+  .warning {
+    margin-bottom: 0.85rem;
+    padding: 0.55rem 0.8rem;
+    background: var(--warning-bg);
+    color: var(--warning);
+    border-left: 3px solid var(--warning);
+    border-radius: 0 4px 4px 0;
+  }
+
+  details.syntax {
+    margin-top: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+  }
+  details.syntax summary { cursor: pointer; padding: 0.45rem 0.7rem; font-weight: 600; font-size: 0.95em; }
+  details.syntax[open] summary { border-bottom: 1px solid var(--border); }
+  details.syntax .body { padding: 0.5rem 0.7rem 0.7rem; }
+
+  /* --- Expressie weergave met neutrale waarden --- */
+  .expr-display {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    background: var(--surface-alt);
+    border-radius: 4px;
+    overflow-x: auto;
+    font-family: "JetBrains Mono", Consolas, monospace;
+  }
+  .expr-display .caption { font-family: inherit; color: var(--muted); font-size: 0.88rem; margin-bottom: 0.5rem; }
+  .expr-tokens {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    font-size: 1.1rem;
+    line-height: 1.2;
+  }
+  .tok {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 1.1rem;
+  }
+  .tok .top { padding: 0 0.1rem; }
+  .tok .bot { font-size: 0.85rem; color: var(--accent); font-weight: 700; min-height: 1.1em; padding-top: 0.1rem; }
+  .tok.op .top { font-weight: 700; }
+
+  /* --- Opbouw-tabel --- */
+  .opbouw-wrap {
+    margin-top: 1rem;
+    overflow-x: auto;
+  }
+  table.opbouw {
+    border-collapse: collapse;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 0.95em;
+  }
+  table.opbouw th, table.opbouw td {
+    border: 1px solid var(--border-strong);
+    padding: 0.4rem 0.55rem;
+    text-align: center;
+    min-width: 2.3rem;
+  }
+  table.opbouw thead th { background: var(--surface-alt); font-weight: 700; }
+  table.opbouw thead th.half-true { background: var(--true-bg); color: var(--true); }
+  table.opbouw thead th.half-false { background: var(--false-bg); color: var(--false); }
+  table.opbouw td.half-true { background: #f3fbf7; }
+  table.opbouw td.half-false { background: #fdf6f6; }
+  table.opbouw td.row-label {
+    background: var(--surface-alt);
+    font-weight: 700;
+    font-size: 1.02rem;
+  }
+  table.opbouw td.cell-target  { font-weight: 400; }
+  table.opbouw td.cell-neutral { font-weight: 700; }
+  table.opbouw td.cell-adjust  { font-weight: 700; font-style: italic; color: var(--adjust); background: var(--adjust-bg); }
+  table.opbouw td.cell-unreach { color: var(--muted); }
+  table.opbouw td.dup { text-decoration: line-through; opacity: 0.55; }
+
+  .legend {
+    margin-top: 0.6rem;
+    font-size: 0.88rem;
+    color: var(--muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  .legend code { background: transparent; }
+  .legend .sw { display: inline-block; padding: 0 0.4rem; border-radius: 3px; font-family: "JetBrains Mono", Consolas, monospace; margin-right: 0.3rem; border: 1px solid var(--border); }
+
+  /* --- Beslistabel (testcases in kolommen, condities in rijen) --- */
+  .beslistabel-wrap { overflow-x: auto; }
+  table.beslistabel {
+    border-collapse: collapse;
+    font-size: 0.95rem;
+  }
+  table.beslistabel th, table.beslistabel td {
+    border: 1px solid var(--border-strong);
+    padding: 0.45rem 0.7rem;
+    text-align: center;
+    vertical-align: middle;
+  }
+  table.beslistabel thead th {
+    background: var(--surface-alt);
+    font-weight: 700;
+  }
+  table.beslistabel thead th.corner {
+    text-align: left;
+    background: var(--surface);
+  }
+  table.beslistabel thead th.tc-head {
+    font-family: "JetBrains Mono", Consolas, monospace;
+    min-width: 4.5rem;
+  }
+  table.beslistabel td.cond-cell {
+    text-align: left;
+    background: var(--surface-alt);
+    white-space: normal;
+    max-width: 22rem;
+  }
+  table.beslistabel .cond-lab {
+    display: inline-block;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-weight: 700;
+    margin-right: 0.45rem;
+    color: var(--accent);
+  }
+  table.beslistabel .cond-text { color: var(--text); }
+  table.beslistabel td.val {
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  table.beslistabel td.val.t { color: var(--true); background: var(--true-bg); }
+  table.beslistabel td.val.f { color: var(--false); background: var(--false-bg); }
+  table.beslistabel tr.outcome-row td {
+    border-top: 2px solid var(--border-strong);
+    font-weight: 700;
+  }
+  table.beslistabel td.outcome-lab {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-size: 0.9rem;
+  }
+
+  .placeholder { color: var(--muted); font-style: italic; padding: 0.6rem 0; }
+
+  footer {
+    text-align: center;
+    padding: 1.2rem 1rem 1.8rem;
+    color: var(--muted);
+    font-size: 0.85em;
+  }
+
+  @media (max-width: 720px) {
+    main { padding: 1rem; }
+    details.section > .body { padding: 0.9rem 1rem 1rem; }
+    header.app-header h1 { font-size: 1.25rem; }
+    table.opbouw { font-size: 0.85em; }
+    table.opbouw th, table.opbouw td { padding: 0.3rem 0.4rem; min-width: 1.8rem; }
+  }
+  @media (min-width: 1400px) {
+    body { font-size: 17px; }
+    main { max-width: 1280px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="inner">
+    <h1>MC/DC — Modified Condition/Decision Coverage</h1>
+    <p class="subtitle">Educatief oefeninstrument voor testontwerp (MBO-4 SD)</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============================================================ -->
+  <!-- Sectie 1: uitleg                                              -->
+  <!-- ============================================================ -->
+  <details class="section" open>
+    <summary>1. Wat is MC/DC?</summary>
+    <div class="body">
+      <p>
+        <strong>MC/DC</strong> (Modified Condition/Decision Coverage) is een teststrategie
+        voor samengestelde Booleaanse beslissingen — bijvoorbeeld een
+        <code>if</code>-statement waarin meerdere voorwaarden via
+        <code>AND</code>/<code>OR</code> aan elkaar hangen. MC/DC eist dat je
+        voor <em>iedere afzonderlijke conditie</em> kunt aantonen dat die conditie
+        de uitkomst van de hele beslissing zelfstandig kan bepalen.
+      </p>
+
+      <h3>Hiërarchie van coverage-niveaus (van licht naar zwaar)</h3>
+      <ul>
+        <li>
+          <strong>Condition coverage</strong> — elke atomaire conditie staat
+          minstens één keer op <code>WAAR</code> en minstens één keer op
+          <code>NIET WAAR</code>. Maar: dit zegt nog niets over of de uitkomst
+          van de beslissing daadwerkelijk verandert.
+        </li>
+        <li>
+          <strong>Decision coverage</strong> — de samengestelde beslissing als
+          geheel komt minstens één keer <code>WAAR</code> uit en één keer
+          <code>NIET WAAR</code>. Individuele condities kunnen ongetest blijven.
+        </li>
+        <li>
+          <strong>MC/DC</strong> — condition coverage <em>plus</em> de eis dat
+          elke conditie aantoonbaar zelfstandig effect heeft op de uitkomst.
+          Vraagt typisch <code>N+1</code> tot <code>2N</code> testcases.
+        </li>
+        <li>
+          <strong>Multiple condition coverage</strong> — alle
+          <code>2<sup>N</sup></code> combinaties. Meest grondig, maar
+          onpraktisch zodra <code>N</code> groot wordt (bij 6 condities al 64
+          testcases).
+        </li>
+      </ul>
+
+      <h3>Kern-idee: onafhankelijk effect</h3>
+      <p>
+        Voor elke conditie <code>X</code> moet er een paar testcases bestaan
+        waarbij <em>alléén</em> <code>X</code> verschilt én de uitkomst flipt.
+        Dat bewijst dat <code>X</code> er zelfstandig toe doet, en niet zomaar
+        meeloopt in een andere conditie.
+      </p>
+
+      <h3>Waarom de middenweg?</h3>
+      <p>
+        MC/DC is de praktische middenweg tussen decision coverage en MCC:
+        minder testcases dan MCC, maar wél volledige zekerheid dat elke
+        conditie ertoe doet. Bij 6 condities: ongeveer 7–12 testcases in plaats
+        van 64.
+      </p>
+
+      <h3>Waarom in de praktijk verplicht?</h3>
+      <p>
+        MC/DC wordt verplicht gesteld in veiligheidskritische domeinen waar
+        software-fouten levens kunnen kosten:
+      </p>
+      <ul>
+        <li><strong>DO-178C</strong> — certificering van vluchtsoftware (Level A in de luchtvaart).</li>
+        <li><strong>ISO 26262</strong> — functionele veiligheid in de automotive industrie (ASIL D).</li>
+        <li><strong>IEC 62304</strong> / FDA-richtlijnen voor medische apparatuur.</li>
+      </ul>
+      <p>
+        In deze contexten is "het lijkt te werken" niet genoeg — je moet kunnen
+        aantonen dat élke voorwaarde in elke beslissing daadwerkelijk getest
+        is op haar eigen effect.
+      </p>
+    </div>
+  </details>
+
+  <!-- ============================================================ -->
+  <!-- Sectie 2: condities en expressie                              -->
+  <!-- ============================================================ -->
+  <details class="section" open>
+    <summary>2. Condities en expressie</summary>
+    <div class="body">
+      <h3>Condities</h3>
+      <p>
+        Voeg de afzonderlijke condities toe die in de beslissing een rol
+        spelen. Elke conditie krijgt automatisch een letter
+        (<code>A</code>, <code>B</code>, …) die je in de expressie kunt
+        gebruiken.
+      </p>
+
+      <div id="condition-list" role="list"></div>
+
+      <button id="add-condition" type="button">+ Conditie toevoegen</button>
+      <p class="hint">Minimaal 2, maximaal 6 condities.</p>
+
+      <h3>Booleaanse expressie</h3>
+      <label for="expr-input" style="display:block;font-weight:600;margin-bottom:0.3rem">Schrijf de samengestelde beslissing met de letters hierboven:</label>
+      <input id="expr-input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="bv. (A EN B) OF C">
+
+      <div id="expr-error" class="error" hidden></div>
+
+      <details class="syntax">
+        <summary>Syntax-hulp</summary>
+        <div class="body">
+          <ul>
+            <li><strong>Variabelen:</strong> losse letters <code>A</code>, <code>B</code>, <code>C</code>, … (hoofdletters niet vereist).</li>
+            <li><strong>EN:</strong> <code>EN</code>, <code>AND</code> of <code>&amp;&amp;</code></li>
+            <li><strong>OF:</strong> <code>OF</code>, <code>OR</code> of <code>||</code></li>
+            <li><strong>NIET:</strong> <code>NIET</code>, <code>NOT</code> of <code>!</code></li>
+            <li><strong>Haakjes:</strong> <code>(</code> … <code>)</code></li>
+          </ul>
+          <p class="hint">
+            <strong>Verplichte haakjes bij gemengde operatoren.</strong>
+            <code>A EN B EN C</code> mag (alleen EN). <code>A OF B OF C</code>
+            mag (alleen OF). Maar <code>A EN B OF C</code> moet
+            <code>(A EN B) OF C</code> óf <code>A EN (B OF C)</code> worden —
+            schrijf met haakjes duidelijk wat bij elkaar hoort.
+          </p>
+          <p class="hint">
+            <strong>Variabele maximaal één keer.</strong> De
+            neutrale-waardenmethode werkt alleen als elke variabele één keer in
+            de expressie staat (ongeacht eventuele <code>NIET</code>).
+          </p>
+        </div>
+      </details>
+
+      <div id="expr-display"></div>
+      <div id="opbouw-tabel"></div>
+    </div>
+  </details>
+
+  <!-- ============================================================ -->
+  <!-- Sectie 3: resultaat                                           -->
+  <!-- ============================================================ -->
+  <details class="section" open>
+    <summary>3. Resultaat</summary>
+    <div class="body">
+      <div id="result-warning" class="warning" hidden></div>
+      <div id="results"></div>
+    </div>
+  </details>
+
+</main>
+
+<footer>
+  <p>Vanilla HTML/CSS/JS &mdash; geen tracking, geen externe dependencies.</p>
+</footer>
+
+<noscript>
+  <p style="padding:1rem;background:#fee2e2;color:#991b1b">
+    Deze applicatie heeft JavaScript nodig.
+  </p>
+</noscript>
+
+<script>
+(function () {
+  'use strict';
+
+  // ================================================================
+  // State
+  // ================================================================
+  const MIN_CONDITIONS = 2;
+  const MAX_CONDITIONS = 6;
+
+  const state = {
+    conditions: [
+      { description: 'klant is premium-lid' },
+      { description: 'bestelbedrag boven €50' },
+    ],
+    expression: 'A EN B',
+  };
+
+  const labelFor = (i) => String.fromCharCode(65 + i);
+
+  // ================================================================
+  // Tokenizer
+  // ================================================================
+  class ParseError extends Error {
+    constructor(msg, pos) { super(msg); this.pos = pos; }
+  }
+
+  function tokenize(input) {
+    const tokens = [];
+    let i = 0;
+    while (i < input.length) {
+      const c = input[i];
+      if (/\s/.test(c)) { i++; continue; }
+      if (c === '(') { tokens.push({ type: 'LPAREN', pos: i, text: '(' }); i++; continue; }
+      if (c === ')') { tokens.push({ type: 'RPAREN', pos: i, text: ')' }); i++; continue; }
+      if (c === '!') { tokens.push({ type: 'NOT', pos: i, text: '!' }); i++; continue; }
+      if (c === '&' && input[i + 1] === '&') { tokens.push({ type: 'AND', pos: i, text: '&&' }); i += 2; continue; }
+      if (c === '|' && input[i + 1] === '|') { tokens.push({ type: 'OR', pos: i, text: '||' }); i += 2; continue; }
+      if (c === '&' || c === '|') {
+        throw new ParseError(`Enkele '${c}' is geen geldige operator — bedoel je '${c}${c}'?`, i);
+      }
+      if (/[A-Za-z]/.test(c)) {
+        let j = i;
+        while (j < input.length && /[A-Za-z]/.test(input[j])) j++;
+        const word = input.slice(i, j);
+        const u = word.toUpperCase();
+        if (u === 'AND' || u === 'EN') tokens.push({ type: 'AND', pos: i, text: word });
+        else if (u === 'OR' || u === 'OF') tokens.push({ type: 'OR', pos: i, text: word });
+        else if (u === 'NOT' || u === 'NIET') tokens.push({ type: 'NOT', pos: i, text: word });
+        else if (word.length === 1) tokens.push({ type: 'VAR', name: u, pos: i, text: word });
+        else throw new ParseError(`Onbekend woord "${word}". Variabelen zijn losse letters (A, B, ...); operatoren zijn EN/OF/NIET (of AND/OR/NOT, of &&/||/!).`, i);
+        i = j;
+        continue;
+      }
+      throw new ParseError(`Onverwacht teken "${c}".`, i);
+    }
+    return tokens;
+  }
+
+  // ================================================================
+  // Parser
+  //
+  // Grammatica (afdwingen verplichte haakjes bij gemengde operatoren):
+  //
+  //   expr    := operand ( op operand )*
+  //              -- alle 'op' in dezelfde reeks moeten gelijk zijn (alleen AND of alleen OR)
+  //   operand := NOT operand
+  //            | '(' expr ')'
+  //            | VAR
+  //
+  // AST-knopen: { type: 'and'|'or', children: [...] }, { type: 'not', child },
+  //             { type: 'var', name }
+  // ================================================================
+  function parse(tokens) {
+    let pos = 0;
+    const peek = () => tokens[pos];
+    const atEnd = () => pos >= tokens.length;
+
+    function parseExpr() {
+      const first = parseOperand();
+      if (atEnd() || (peek().type !== 'AND' && peek().type !== 'OR')) return first;
+      const opType = peek().type;
+      const children = [first];
+      while (!atEnd() && (peek().type === 'AND' || peek().type === 'OR')) {
+        if (peek().type !== opType) {
+          throw new ParseError(
+            'Schrijf met haakjes duidelijk wat bij elkaar hoort. ' +
+            'EN en OF in dezelfde groep mogen niet zonder haakjes worden gemengd.',
+            peek().pos);
+        }
+        pos++;
+        children.push(parseOperand());
+      }
+      return { type: opType.toLowerCase(), children };
+    }
+
+    function parseOperand() {
+      if (atEnd()) throw new ParseError('Onvolledige expressie — er ontbreekt een operand.', tokens.length ? tokens[tokens.length - 1].pos + 1 : 0);
+      const t = peek();
+      if (t.type === 'NOT') { pos++; return { type: 'not', child: parseOperand() }; }
+      if (t.type === 'LPAREN') {
+        pos++;
+        const e = parseExpr();
+        if (atEnd() || peek().type !== 'RPAREN') {
+          throw new ParseError("Ontbrekend rechter haakje ')'.", atEnd() ? t.pos : peek().pos);
+        }
+        pos++;
+        return e;
+      }
+      if (t.type === 'VAR') { pos++; return { type: 'var', name: t.name }; }
+      if (t.type === 'RPAREN') throw new ParseError("Onverwacht ')'.", t.pos);
+      if (t.type === 'AND' || t.type === 'OR') {
+        throw new ParseError(`Onverwachte operator "${t.text}" — er ontbreekt een operand ervoor.`, t.pos);
+      }
+      throw new ParseError(`Onverwacht token "${t.text || t.type}".`, t.pos);
+    }
+
+    if (tokens.length === 0) throw new ParseError('Lege expressie.', 0);
+    const ast = parseExpr();
+    if (!atEnd()) {
+      throw new ParseError(`Onverwacht "${peek().text}" na expressie.`, peek().pos);
+    }
+    return ast;
+  }
+
+  // ================================================================
+  // Validatie
+  // ================================================================
+  function collectVars(ast) {
+    const out = [];
+    (function walk(n) {
+      if (n.type === 'var') out.push(n.name);
+      else if (n.type === 'not') walk(n.child);
+      else if (n.children) n.children.forEach(walk);
+    })(ast);
+    return out;
+  }
+
+  function checkUniqueVars(ast) {
+    const counts = {};
+    for (const v of collectVars(ast)) counts[v] = (counts[v] || 0) + 1;
+    for (const v of Object.keys(counts)) {
+      if (counts[v] > 1) {
+        throw new ParseError(
+          `Variabele ${v} komt meerdere keren voor. De neutrale-waardenmethode werkt alleen als elke variabele één keer voorkomt.`,
+          -1);
+      }
+    }
+  }
+
+  function checkKnownVars(ast, knownLabels) {
+    const known = new Set(knownLabels);
+    for (const v of collectVars(ast)) {
+      if (!known.has(v)) {
+        throw new ParseError(
+          `Onbekende variabele "${v}". Voeg ${v} toe als conditie in sectie 2, of pas de expressie aan.`,
+          -1);
+      }
+    }
+  }
+
+  // ================================================================
+  // Evaluator
+  // ================================================================
+  function evaluate(ast, env) {
+    switch (ast.type) {
+      case 'var': return !!env[ast.name];
+      case 'not': return !evaluate(ast.child, env);
+      case 'and': return ast.children.every(c => evaluate(c, env));
+      case 'or':  return ast.children.some(c => evaluate(c, env));
+    }
+    return false;
+  }
+
+  // ================================================================
+  // MC/DC-algoritme — neutrale-waardenmethode (TMap-stijl)
+  // ================================================================
+
+  // Geef toewijzingen voor variabelen in 'node' zodat de sub-expressie
+  // gelijk wordt aan targetValue. Volgens TMap-conventie: bij een non-natural
+  // target wordt alleen de rightmost child aangepast; de andere blijven op
+  // operator-neutraal.
+  //
+  // isNatural geeft aan of dit met *alle* variabelen op operator-neutraal
+  // (van hun directe ouder) kan; zo niet, dan was een aanpassing nodig.
+  function setSubexprToValue(node, targetValue) {
+    if (node.type === 'var') {
+      return { assignments: { [node.name]: targetValue }, isNatural: true };
+    }
+    if (node.type === 'not') {
+      return setSubexprToValue(node.child, !targetValue);
+    }
+    const natural = (node.type === 'and'); // AND-neutraal=true, OR-neutraal=false
+    if (targetValue === natural) {
+      // Alle children moeten 'natural' opleveren.
+      const assignments = {};
+      let allNatural = true;
+      for (const child of node.children) {
+        const r = setSubexprToValue(child, natural);
+        Object.assign(assignments, r.assignments);
+        if (!r.isNatural) allNatural = false;
+      }
+      return { assignments, isNatural: allNatural };
+    } else {
+      // Non-natural target: rightmost child wordt aangepast.
+      const assignments = {};
+      const lastIdx = node.children.length - 1;
+      for (let i = 0; i < node.children.length; i++) {
+        const t = (i === lastIdx) ? targetValue : natural;
+        const r = setSubexprToValue(node.children[i], t);
+        Object.assign(assignments, r.assignments);
+      }
+      return { assignments, isNatural: false };
+    }
+  }
+
+  // Vind het pad (lijst knopen) van de variabele X naar de root.
+  function findPath(ast, varName) {
+    function dfs(node) {
+      if (node.type === 'var' && node.name === varName) return [node];
+      if (node.type === 'not') {
+        const r = dfs(node.child); if (r) return [...r, node]; return null;
+      }
+      if (node.children) {
+        for (const c of node.children) {
+          const r = dfs(c); if (r) return [...r, node];
+        }
+      }
+      return null;
+    }
+    return dfs(ast);
+  }
+
+  // Bepaal voor elke variabele (anders dan X) zijn waarde + marker (neutraal
+  // of aanpassing). Marker is per-sibling-sub-expressie: als de sibling als
+  // geheel non-natural moest worden, krijgen alle vars daarin de
+  // 'adjustment'-markering (ook degene die toevallig op hun neutrale waarde
+  // staan, conform de spec).
+  function determineSiblingMarks(ast, X) {
+    const path = findPath(ast, X);
+    if (!path) return {};
+    const marks = {};
+    for (let i = 0; i < path.length - 1; i++) {
+      const current = path[i];
+      const parent = path[i + 1];
+      if (parent.type === 'not') continue;
+      const sibTarget = (parent.type === 'and'); // AND -> 1, OR -> 0
+      for (const child of parent.children) {
+        if (child === current) continue;
+        const r = setSubexprToValue(child, sibTarget);
+        const marker = r.isNatural ? 'neutral' : 'adjustment';
+        for (const v of Object.keys(r.assignments)) {
+          marks[v] = { value: r.assignments[v], marker };
+        }
+      }
+    }
+    return marks;
+  }
+
+  // Genereer voor elke variabele de twee rijen (WAAR-rij en NIET-WAAR-rij).
+  function generateRows(ast) {
+    const variables = [...new Set(collectVars(ast))].sort();
+    const rows = [];
+    for (const X of variables) {
+      const sib = determineSiblingMarks(ast, X);
+      for (const rowType of ['WAAR', 'NIET_WAAR']) {
+        const targetOut = (rowType === 'WAAR');
+        const baseEnv = {};
+        for (const v of Object.keys(sib)) baseEnv[v] = sib[v].value;
+
+        let chosenX = null;
+        // Probeer eerst true, dan false — we accepteren de eerste die het
+        // rijdoel haalt.
+        for (const xv of [true, false]) {
+          baseEnv[X] = xv;
+          if (evaluate(ast, baseEnv) === targetOut) { chosenX = xv; break; }
+        }
+
+        if (chosenX === null) {
+          rows.push({ X, rowType, marks: null, output: targetOut, unreachable: true });
+        } else {
+          const marks = Object.assign({}, sib, { [X]: { value: chosenX, marker: 'target' } });
+          rows.push({ X, rowType, marks, output: targetOut, unreachable: false });
+        }
+      }
+    }
+    return { rows, variables };
+  }
+
+  // Markeer duplicaten en pak de unieke testcases.
+  function dedup(rows, variables) {
+    const seenKey = new Map(); // key -> index in unique[]
+    const dupFlags = [];
+    const unique = [];
+    rows.forEach((row) => {
+      if (row.unreachable) { dupFlags.push(false); return; }
+      const envObj = {};
+      for (const v of variables) envObj[v] = row.marks[v].value;
+      const key = JSON.stringify({ env: envObj, out: row.output });
+      if (seenKey.has(key)) {
+        dupFlags.push(true);
+      } else {
+        seenKey.set(key, unique.length);
+        unique.push({ env: envObj, output: row.output });
+        dupFlags.push(false);
+      }
+    });
+    return { unique, dupFlags };
+  }
+
+  // ================================================================
+  // DOM helpers
+  // ================================================================
+  function el(tag, attrs, children) {
+    const e = document.createElement(tag);
+    if (attrs) for (const k in attrs) {
+      const v = attrs[k];
+      if (v === null || v === undefined || v === false) continue;
+      if (k === 'class') e.className = v;
+      else if (k === 'text') e.textContent = v;
+      else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+      else e.setAttribute(k, v);
+    }
+    if (children) for (const c of children) {
+      if (c === null || c === undefined || c === false) continue;
+      if (typeof c === 'string') e.appendChild(document.createTextNode(c));
+      else e.appendChild(c);
+    }
+    return e;
+  }
+  const $ = (id) => document.getElementById(id);
+
+  // ================================================================
+  // Render: condities
+  // ================================================================
+  function renderConditions() {
+    const list = $('condition-list');
+    list.innerHTML = '';
+    state.conditions.forEach((c, idx) => {
+      const lbl = labelFor(idx);
+      const row = el('div', { class: 'cond-row', role: 'listitem' }, [
+        el('span', { class: 'cond-label', 'aria-label': 'conditie ' + lbl }, [lbl]),
+      ]);
+      const input = el('input', {
+        class: 'cond-desc', type: 'text', placeholder: 'omschrijving (bv. "klant is premium-lid")',
+        'aria-label': 'omschrijving van conditie ' + lbl,
+      });
+      input.value = c.description;
+      input.addEventListener('input', () => {
+        state.conditions[idx].description = input.value;
+        renderResults(); // omschrijving alleen in resultaat-rendering
+      });
+      row.appendChild(input);
+
+      const rm = el('button', {
+        class: 'btn-remove', type: 'button',
+        title: 'verwijder conditie ' + lbl, 'aria-label': 'verwijder conditie ' + lbl,
+      }, ['×']);
+      rm.disabled = state.conditions.length <= MIN_CONDITIONS;
+      rm.addEventListener('click', () => {
+        state.conditions.splice(idx, 1);
+        renderConditions();
+        updateAddButton();
+        renderAll();
+      });
+      row.appendChild(rm);
+      list.appendChild(row);
+    });
+  }
+  function updateAddButton() {
+    $('add-condition').disabled = state.conditions.length >= MAX_CONDITIONS;
+  }
+
+  // ================================================================
+  // Render: expressie met neutrale waarden eronder
+  // ================================================================
+  function renderExpressionDisplay(tokens) {
+    const wrap = el('div', { class: 'expr-display' });
+    wrap.appendChild(el('div', { class: 'caption' }, ['Operator-neutrale waarden (1 onder EN, 0 onder OF):']));
+    const inner = el('div', { class: 'expr-tokens' });
+    for (const t of tokens) {
+      let topText, isOp = false, neutral = '';
+      if (t.type === 'AND') { topText = t.text; isOp = true; neutral = '1'; }
+      else if (t.type === 'OR') { topText = t.text; isOp = true; neutral = '0'; }
+      else if (t.type === 'NOT') { topText = t.text; isOp = true; }
+      else topText = t.text;
+      const tokEl = el('span', { class: 'tok' + (isOp ? ' op' : '') }, [
+        el('span', { class: 'top' }, [topText]),
+        el('span', { class: 'bot' }, [neutral]),
+      ]);
+      inner.appendChild(tokEl);
+    }
+    wrap.appendChild(inner);
+    return wrap;
+  }
+
+  // ================================================================
+  // Render: opbouw-tabel
+  // ================================================================
+  function renderOpbouwTable(rows, variables, dupFlags) {
+    const wrap = el('div', { class: 'opbouw-wrap' });
+    const tbl = el('table', { class: 'opbouw' });
+
+    const thead = el('thead');
+    const tr1 = el('tr');
+    const thBeurt = el('th', { rowspan: '2' });
+    thBeurt.innerHTML = 'aan de<br>beurt';
+    tr1.appendChild(thBeurt);
+    tr1.appendChild(el('th', { colspan: String(variables.length), class: 'half-true' }, ['WAAR']));
+    tr1.appendChild(el('th', { colspan: String(variables.length), class: 'half-false' }, ['NIET WAAR']));
+    thead.appendChild(tr1);
+
+    const tr2 = el('tr');
+    for (const v of variables) tr2.appendChild(el('th', { class: 'half-true' }, [v]));
+    for (const v of variables) tr2.appendChild(el('th', { class: 'half-false' }, [v]));
+    thead.appendChild(tr2);
+    tbl.appendChild(thead);
+
+    const tbody = el('tbody');
+    for (const X of variables) {
+      const tr = el('tr');
+      tr.appendChild(el('td', { class: 'row-label' }, [X]));
+
+      const waarRow = rows.find(r => r.X === X && r.rowType === 'WAAR');
+      const waarIdx = rows.indexOf(waarRow);
+      const waarDup = dupFlags[waarIdx];
+
+      const nwRow = rows.find(r => r.X === X && r.rowType === 'NIET_WAAR');
+      const nwIdx = rows.indexOf(nwRow);
+      const nwDup = dupFlags[nwIdx];
+
+      for (const half of [{ row: waarRow, dup: waarDup, cls: 'half-true' },
+                          { row: nwRow,   dup: nwDup,   cls: 'half-false' }]) {
+        for (const v of variables) {
+          const td = el('td', { class: half.cls + (half.dup ? ' dup' : '') });
+          if (half.row.unreachable) {
+            td.textContent = '?';
+            td.classList.add('cell-unreach');
+          } else {
+            const m = half.row.marks[v];
+            td.classList.add('cell-' + (m.marker === 'adjustment' ? 'adjust' : m.marker));
+            td.textContent = m.value ? '1' : '0';
+          }
+          tr.appendChild(td);
+        }
+      }
+      tbody.appendChild(tr);
+    }
+    tbl.appendChild(tbody);
+    wrap.appendChild(tbl);
+
+    const legend = el('div', { class: 'legend' }, [
+      el('span', {}, [
+        el('span', { class: 'sw' }, ['1']),
+        '= aan de beurt (de variabele die wordt getest)',
+      ]),
+      el('span', {}, [
+        el('span', { class: 'sw', style: 'font-weight:700' }, ['1']),
+        '= pure neutrale waarde (1 onder EN, 0 onder OF)',
+      ]),
+      el('span', {}, [
+        el('span', { class: 'sw cell-adjust', style: 'font-style:italic' }, ['1']),
+        '= aanpassing (sub-expressie als geheel non-neutraal)',
+      ]),
+      el('span', {}, [
+        el('span', { class: 'sw dup' }, ['1']),
+        '= duplicaat van eerdere rij-helft',
+      ]),
+    ]);
+    wrap.appendChild(legend);
+
+    // Onbereikbaar-melding
+    const unreach = rows.filter(r => r.unreachable);
+    if (unreach.length > 0) {
+      const msg = el('div', { class: 'warning', style: 'margin-top:0.85rem' });
+      const which = [...new Set(unreach.map(r => `${r.X}-${r.rowType === 'WAAR' ? 'WAAR' : 'NIET WAAR'}-rij`))].join(', ');
+      msg.textContent = `Onbereikbare rij(en): ${which}. Geen waarde van de geteste variabele haalde het rijdoel — controleer de expressie.`;
+      wrap.appendChild(msg);
+    }
+
+    return wrap;
+  }
+
+  // ================================================================
+  // Render: beslistabel (testcases in kolommen, condities in rijen)
+  // ================================================================
+  function renderDecisionTable(unique, variables) {
+    const wrap = el('div', { class: 'beslistabel-wrap' });
+    const tbl = el('table', { class: 'beslistabel' });
+
+    const thead = el('thead');
+    const trHead = el('tr');
+    trHead.appendChild(el('th', { class: 'corner' }, ['Conditie']));
+    unique.forEach((_, i) => {
+      trHead.appendChild(el('th', { class: 'tc-head' }, ['TC-' + (i + 1)]));
+    });
+    thead.appendChild(trHead);
+    tbl.appendChild(thead);
+
+    const tbody = el('tbody');
+    for (const v of variables) {
+      const cond = state.conditions[v.charCodeAt(0) - 65];
+      const desc = (cond && cond.description.trim()) ? cond.description : '(geen omschrijving)';
+      const tr = el('tr');
+      tr.appendChild(el('td', { class: 'cond-cell' }, [
+        el('span', { class: 'cond-lab' }, [v]),
+        el('span', { class: 'cond-text' }, [desc]),
+      ]));
+      for (const tc of unique) {
+        const val = tc.env[v];
+        tr.appendChild(el('td', { class: 'val ' + (val ? 't' : 'f') }, [val ? 'WAAR' : 'NIET WAAR']));
+      }
+      tbody.appendChild(tr);
+    }
+
+    const trOut = el('tr', { class: 'outcome-row' });
+    trOut.appendChild(el('td', { class: 'cond-cell outcome-lab' }, ['Uitkomst']));
+    for (const tc of unique) {
+      trOut.appendChild(el('td', { class: 'val outcome-val ' + (tc.output ? 't' : 'f') }, [tc.output ? 'WAAR' : 'NIET WAAR']));
+    }
+    tbody.appendChild(trOut);
+
+    tbl.appendChild(tbody);
+    wrap.appendChild(tbl);
+    return wrap;
+  }
+
+  // ================================================================
+  // Hoofd-flow
+  // ================================================================
+  function showError(msg) {
+    const eEl = $('expr-error');
+    eEl.textContent = msg;
+    eEl.hidden = false;
+    $('expr-display').innerHTML = '';
+    $('opbouw-tabel').innerHTML = '';
+    $('results').innerHTML = '';
+    $('result-warning').hidden = true;
+  }
+  function clearError() { $('expr-error').hidden = true; }
+
+  function renderAll() {
+    renderExpression();
+    renderResults();
+  }
+
+  function renderExpression() {
+    clearError();
+    $('expr-display').innerHTML = '';
+    $('opbouw-tabel').innerHTML = '';
+    const exprText = state.expression.trim();
+    if (!exprText) return;
+
+    let tokens, ast;
+    try { tokens = tokenize(exprText); }
+    catch (e) { showError(e.message); return; }
+    try { ast = parse(tokens); }
+    catch (e) { showError(e.message); return; }
+    try { checkUniqueVars(ast); }
+    catch (e) { showError(e.message); return; }
+    try { checkKnownVars(ast, state.conditions.map((_, i) => labelFor(i))); }
+    catch (e) { showError(e.message); return; }
+
+    $('expr-display').appendChild(renderExpressionDisplay(tokens));
+    const { rows, variables } = generateRows(ast);
+    const { dupFlags } = dedup(rows, variables);
+    $('opbouw-tabel').appendChild(renderOpbouwTable(rows, variables, dupFlags));
+  }
+
+  function renderResults() {
+    $('results').innerHTML = '';
+    $('result-warning').hidden = true;
+    const exprText = state.expression.trim();
+    if (!exprText) {
+      $('results').appendChild(el('p', { class: 'placeholder' }, ['Vul een expressie in om testcases te zien.']));
+      return;
+    }
+    let tokens, ast;
+    try {
+      tokens = tokenize(exprText);
+      ast = parse(tokens);
+      checkUniqueVars(ast);
+      checkKnownVars(ast, state.conditions.map((_, i) => labelFor(i)));
+    } catch (e) {
+      $('results').appendChild(el('p', { class: 'placeholder' }, ['Geen testcases zolang de expressie ongeldig is.']));
+      return;
+    }
+
+    const { rows, variables } = generateRows(ast);
+    const { unique } = dedup(rows, variables);
+
+    // N+1-check
+    const warnings = [];
+    const expected = variables.length + 1;
+    if (unique.length !== expected) {
+      warnings.push(
+        `Verwacht ${expected} testcases (N+1, met N=${variables.length}), gevonden ${unique.length}. ` +
+        `Dit kan duiden op een onbereikbare rij of een variabele zonder effect op de uitkomst.`);
+    }
+    const unused = state.conditions
+      .map((_, i) => labelFor(i))
+      .filter(l => !variables.includes(l));
+    if (unused.length > 0) {
+      warnings.push(`De conditie(s) ${unused.join(', ')} staan in sectie 2 maar komen niet voor in de expressie.`);
+    }
+    if (warnings.length > 0) {
+      const wEl = $('result-warning');
+      wEl.textContent = warnings.join(' ');
+      wEl.hidden = false;
+    }
+
+    $('results').appendChild(renderDecisionTable(unique, variables));
+  }
+
+  // ================================================================
+  // Init
+  // ================================================================
+  document.addEventListener('DOMContentLoaded', () => {
+    renderConditions();
+    updateAddButton();
+    $('expr-input').value = state.expression;
+
+    $('add-condition').addEventListener('click', () => {
+      if (state.conditions.length >= MAX_CONDITIONS) return;
+      state.conditions.push({ description: '' });
+      renderConditions();
+      updateAddButton();
+      renderAll();
+    });
+    $('expr-input').addEventListener('input', (e) => {
+      state.expression = e.target.value;
+      renderAll();
+    });
+
+    renderAll();
+  });
+
+})();
+</script>
+
+</body>
+</html>
