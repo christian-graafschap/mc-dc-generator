@@ -4,37 +4,6 @@ Educatief, single-page web-applicatie voor het uitleggen en genereren van
 MC/DC-testcases volgens de **neutrale-waardenmethode** (TMap-stijl). Bedoeld
 voor docent en MBO-4 SD-studenten in Nederland.
 
-Alles in het Nederlands, in één `index.html`, geen build step, geen
-frameworks, geen externe dependencies.
-
-## Lokaal openen
-
-Dubbelklik op `index.html`, of:
-
-- **Windows:** `start index.html`
-- **macOS:** `open index.html`
-- **Linux:** `xdg-open index.html`
-
-Werkt vanaf het bestandssysteem (`file://...`) — er is geen webserver nodig.
-
-## Op GitHub Pages zetten
-
-1. Maak een nieuwe repository aan op GitHub (bv. `mcdc-tool`).
-2. Push de inhoud van deze map:
-   ```
-   git init
-   git add index.html README.md
-   git commit -m "Eerste versie MC/DC-tool"
-   git branch -M main
-   git remote add origin https://github.com/<jouw-gebruikersnaam>/mcdc-tool.git
-   git push -u origin main
-   ```
-3. Ga in de repository naar **Settings → Pages**.
-4. Bij **Build and deployment**: kies **Source: Deploy from a branch**,
-   **Branch: `main`**, **Folder: `/ (root)`**, en klik **Save**.
-5. Na ~1 minuut staat je app op
-   `https://<jouw-gebruikersnaam>.github.io/mcdc-tool/`.
-
 ## Gebruiksaanwijzing
 
 1. **Condities en expressie** (sectie 2):
@@ -84,15 +53,3 @@ niet toegestaan — de neutrale-waardenmethode werkt alleen als elke variabele
   `(A EN B) OF C`, `(A OF B) EN C`, `(A EN B) OF C OF D`.
 - **Statisch hostbaar** op elke webserver of vanaf bestand. Geen
   localStorage, geen netwerk, geen tracking.
-
-## Out of scope
-
-- MC/DC met short-circuit-evaluatie.
-- Expressies met dubbele variabelen.
-- Expressies met gemengde operatoren zonder haakjes.
-- Andere talen dan Nederlands.
-
-## Aanpassen
-
-Alle code, stijl en uitlegtekst staat in `index.html`. Voorbeelden toevoegen,
-kleuren wijzigen of de uitleg herschrijven kan rechtstreeks in dat bestand.
