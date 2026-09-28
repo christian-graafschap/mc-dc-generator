@@ -330,6 +330,24 @@
   }
   #export-excel:hover { background: #dbeafe; }
 
+  .mode-toggle {
+    display: flex;
+    gap: 1.25rem;
+    margin-bottom: 0.85rem;
+    padding: 0.6rem 0.85rem;
+    background: var(--surface-alt);
+    border-radius: 4px;
+    font-size: 0.95rem;
+  }
+  .mode-toggle label {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 600;
+  }
+  .mode-toggle input { cursor: pointer; }
+
   footer {
     text-align: center;
     padding: 1.2rem 1rem 1.8rem;
@@ -498,6 +516,10 @@
   <details class="section" open>
     <summary>3. Resultaat</summary>
     <div class="body">
+      <div class="mode-toggle" role="radiogroup" aria-label="Testmethode">
+        <label><input type="radio" name="mode" value="mcdc" checked> MC/DC</label>
+        <label><input type="radio" name="mode" value="mcc"> MCC (alle combinaties)</label>
+      </div>
       <div id="result-warning" class="warning" hidden></div>
       <div id="results"></div>
     </div>
@@ -531,6 +553,7 @@
       { description: 'bestelbedrag boven €50' },
     ],
     expression: 'A EN B',
+    mode: 'mcdc',
   };
 
   const labelFor = (i) => String.fromCharCode(65 + i);
@@ -826,6 +849,27 @@
   }
 
   // ================================================================
+  // MCC-algoritme — halveer-methode
+  //
+  // Kolomindex is een binaire teller; rij i (0-indexed van boven) splitst
+  // op bit N-1-i, waarbij bit=0 → WAAR. Bovenste variabele: eerste helft T,
+  // tweede helft F; elke volgende variabele halveert die blokken.
+  // ================================================================
+  function generateMCC(ast, variables) {
+    const N = variables.length;
+    const total = 1 << N;
+    const rows = [];
+    for (let col = 0; col < total; col++) {
+      const env = {};
+      for (let i = 0; i < N; i++) {
+        env[variables[i]] = ((col >> (N - 1 - i)) & 1) === 0;
+      }
+      rows.push({ env, output: evaluate(ast, env) });
+    }
+    return rows;
+  }
+
+  // ================================================================
   // DOM helpers
   // ================================================================
   function el(tag, attrs, children) {
@@ -1036,14 +1080,14 @@
       html += `<span style="${styles.condTxt}">${esc(desc)}</span></td>`;
       for (const tc of unique) {
         const val = tc.env[v];
-        html += `<td style="${val ? styles.valT : styles.valF}">${val ? 'WAAR' : 'NIET WAAR'}</td>`;
+        html += `<td style="${val ? styles.valT : styles.valF}">${val ? 'T' : 'F'}</td>`;
       }
       html += `</tr>`;
     }
 
     html += `<tr><td style="${styles.outLab}">Uitkomst</td>`;
     for (const tc of unique) {
-      html += `<td style="${tc.output ? styles.outT : styles.outF}">${tc.output ? 'WAAR' : 'NIET WAAR'}</td>`;
+      html += `<td style="${tc.output ? styles.outT : styles.outF}">${tc.output ? 'T' : 'F'}</td>`;
     }
     html += `</tr></tbody></table>`;
 
@@ -1053,7 +1097,7 @@
       `xmlns="http://www.w3.org/TR/REC-html40">` +
       `<head><meta charset="utf-8">` +
       `<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>` +
-      `<x:Name>MC-DC testcases</x:Name>` +
+      `<x:Name>${state.mode === 'mcc' ? 'MCC' : 'MC-DC'} testcases</x:Name>` +
       `<x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>` +
       `</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->` +
       `</head><body>${html}</body></html>`
@@ -1067,7 +1111,7 @@
     const today = new Date().toISOString().slice(0, 10);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `mcdc-testcases-${today}.xls`;
+    a.download = `${state.mode === 'mcc' ? 'mcc' : 'mcdc'}-testcases-${today}.xls`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1101,7 +1145,7 @@
       ]));
       for (const tc of unique) {
         const val = tc.env[v];
-        tr.appendChild(el('td', { class: 'val ' + (val ? 't' : 'f') }, [val ? 'WAAR' : 'NIET WAAR']));
+        tr.appendChild(el('td', { class: 'val ' + (val ? 't' : 'f') }, [val ? 'T' : 'F']));
       }
       tbody.appendChild(tr);
     }
@@ -1109,7 +1153,7 @@
     const trOut = el('tr', { class: 'outcome-row' });
     trOut.appendChild(el('td', { class: 'cond-cell outcome-lab' }, ['Uitkomst']));
     for (const tc of unique) {
-      trOut.appendChild(el('td', { class: 'val outcome-val ' + (tc.output ? 't' : 'f') }, [tc.output ? 'WAAR' : 'NIET WAAR']));
+      trOut.appendChild(el('td', { class: 'val outcome-val ' + (tc.output ? 't' : 'f') }, [tc.output ? 'T' : 'F']));
     }
     tbody.appendChild(trOut);
 
@@ -1149,12 +1193,20 @@
     catch (e) { showError(e.message); return; }
     try { ast = parse(tokens); }
     catch (e) { showError(e.message); return; }
-    try { checkUniqueVars(ast); }
-    catch (e) { showError(e.message); return; }
     try { checkKnownVars(ast, state.conditions.map((_, i) => labelFor(i))); }
     catch (e) { showError(e.message); return; }
 
     $('expr-display').appendChild(renderExpressionDisplay(tokens));
+
+    try { checkUniqueVars(ast); }
+    catch (e) {
+      if (state.mode === 'mcdc') { showError(e.message); return; }
+      $('opbouw-tabel').appendChild(el('div', { class: 'warning' }, [
+        'Opbouw-tabel niet beschikbaar: de neutrale-waardenmethode vereist dat elke variabele één keer voorkomt. Bij MCC is dat niet verplicht.',
+      ]));
+      return;
+    }
+
     const { rows, variables } = generateRows(ast);
     const { dupFlags } = dedup(rows, variables);
     $('opbouw-tabel').appendChild(renderOpbouwTable(rows, variables, dupFlags));
@@ -1172,24 +1224,30 @@
     try {
       tokens = tokenize(exprText);
       ast = parse(tokens);
-      checkUniqueVars(ast);
       checkKnownVars(ast, state.conditions.map((_, i) => labelFor(i)));
+      if (state.mode === 'mcdc') checkUniqueVars(ast);
     } catch (e) {
       $('results').appendChild(el('p', { class: 'placeholder' }, ['Geen testcases zolang de expressie ongeldig is.']));
       return;
     }
 
-    const { rows, variables } = generateRows(ast);
-    const { unique } = dedup(rows, variables);
-
-    // N+1-check
+    const variables = [...new Set(collectVars(ast))].sort();
     const warnings = [];
-    const expected = variables.length + 1;
-    if (unique.length !== expected) {
-      warnings.push(
-        `Verwacht ${expected} testcases (N+1, met N=${variables.length}), gevonden ${unique.length}. ` +
-        `Dit kan duiden op een onbereikbare rij of een variabele zonder effect op de uitkomst.`);
+    let unique;
+
+    if (state.mode === 'mcdc') {
+      const { rows } = generateRows(ast);
+      ({ unique } = dedup(rows, variables));
+      const expected = variables.length + 1;
+      if (unique.length !== expected) {
+        warnings.push(
+          `Verwacht ${expected} testcases (N+1, met N=${variables.length}), gevonden ${unique.length}. ` +
+          `Dit kan duiden op een onbereikbare rij of een variabele zonder effect op de uitkomst.`);
+      }
+    } else {
+      unique = generateMCC(ast, variables);
     }
+
     const unused = state.conditions
       .map((_, i) => labelFor(i))
       .filter(l => !variables.includes(l));
@@ -1230,6 +1288,13 @@
     $('expr-input').addEventListener('input', (e) => {
       state.expression = e.target.value;
       renderAll();
+    });
+    document.querySelectorAll('input[name="mode"]').forEach((r) => {
+      r.addEventListener('change', (e) => {
+        if (!e.target.checked) return;
+        state.mode = e.target.value;
+        renderAll();
+      });
     });
 
     renderAll();
