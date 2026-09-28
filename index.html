@@ -317,6 +317,19 @@
 
   .placeholder { color: var(--muted); font-style: italic; padding: 0.6rem 0; }
 
+  #export-excel {
+    margin-bottom: 0.85rem;
+    padding: 0.4rem 0.85rem;
+    background: var(--accent-bg);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 4px;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+  }
+  #export-excel:hover { background: #dbeafe; }
+
   footer {
     text-align: center;
     padding: 1.2rem 1rem 1.8rem;
@@ -351,7 +364,7 @@
   <!-- ============================================================ -->
   <!-- Sectie 1: uitleg                                              -->
   <!-- ============================================================ -->
-  <details class="section" open>
+  <details class="section">
     <summary>1. Wat is MC/DC?</summary>
     <div class="body">
       <p>
@@ -986,6 +999,82 @@
   }
 
   // ================================================================
+  // Excel-export: HTML-tabel met inline styles, wordt door Excel geopend
+  // ================================================================
+  function buildExcelHtml(unique, variables) {
+    const BORDER = '1px solid #9a9a9e';
+    const styles = {
+      table:   'border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:11pt;',
+      thCorner:`border:${BORDER};padding:6px 10px;background:#ffffff;text-align:left;font-weight:700;`,
+      thTc:    `border:${BORDER};padding:6px 10px;background:#f3f3ef;text-align:center;font-weight:700;`,
+      condCell:`border:${BORDER};padding:6px 10px;background:#f3f3ef;text-align:left;`,
+      condLab: 'font-weight:700;color:#1e40af;margin-right:8px;',
+      condTxt: 'color:#1d1d1f;',
+      valT:    `border:${BORDER};padding:6px 10px;background:#ecfdf5;color:#047857;font-weight:700;text-align:center;`,
+      valF:    `border:${BORDER};padding:6px 10px;background:#fef2f2;color:#b91c1c;font-weight:700;text-align:center;`,
+      outLab:  `border:${BORDER};padding:6px 10px;background:#f3f3ef;text-align:left;font-weight:700;text-transform:uppercase;border-top:2px solid #9a9a9e;`,
+      outT:    `border:${BORDER};padding:6px 10px;background:#ecfdf5;color:#047857;font-weight:700;text-align:center;border-top:2px solid #9a9a9e;`,
+      outF:    `border:${BORDER};padding:6px 10px;background:#fef2f2;color:#b91c1c;font-weight:700;text-align:center;border-top:2px solid #9a9a9e;`,
+    };
+
+    const esc = (s) => String(s).replace(/[&<>"']/g, c => (
+      { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+    ));
+
+    let html = `<table style="${styles.table}"><thead><tr>`;
+    html += `<th style="${styles.thCorner}">Conditie</th>`;
+    unique.forEach((_, i) => {
+      html += `<th style="${styles.thTc}">TC-${i + 1}</th>`;
+    });
+    html += `</tr></thead><tbody>`;
+
+    for (const v of variables) {
+      const cond = state.conditions[v.charCodeAt(0) - 65];
+      const desc = (cond && cond.description.trim()) ? cond.description : '(geen omschrijving)';
+      html += `<tr><td style="${styles.condCell}">`;
+      html += `<span style="${styles.condLab}">${esc(v)}</span>`;
+      html += `<span style="${styles.condTxt}">${esc(desc)}</span></td>`;
+      for (const tc of unique) {
+        const val = tc.env[v];
+        html += `<td style="${val ? styles.valT : styles.valF}">${val ? 'WAAR' : 'NIET WAAR'}</td>`;
+      }
+      html += `</tr>`;
+    }
+
+    html += `<tr><td style="${styles.outLab}">Uitkomst</td>`;
+    for (const tc of unique) {
+      html += `<td style="${tc.output ? styles.outT : styles.outF}">${tc.output ? 'WAAR' : 'NIET WAAR'}</td>`;
+    }
+    html += `</tr></tbody></table>`;
+
+    return (
+      `<html xmlns:o="urn:schemas-microsoft-com:office:office" ` +
+      `xmlns:x="urn:schemas-microsoft-com:office:excel" ` +
+      `xmlns="http://www.w3.org/TR/REC-html40">` +
+      `<head><meta charset="utf-8">` +
+      `<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>` +
+      `<x:Name>MC-DC testcases</x:Name>` +
+      `<x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>` +
+      `</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->` +
+      `</head><body>${html}</body></html>`
+    );
+  }
+
+  function downloadExcel(unique, variables) {
+    const doc = buildExcelHtml(unique, variables);
+    const blob = new Blob(['﻿' + doc], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const today = new Date().toISOString().slice(0, 10);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mcdc-testcases-${today}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  // ================================================================
   // Render: beslistabel (testcases in kolommen, condities in rijen)
   // ================================================================
   function renderDecisionTable(unique, variables) {
@@ -1112,6 +1201,13 @@
       wEl.textContent = warnings.join(' ');
       wEl.hidden = false;
     }
+
+    const exportBtn = el('button', {
+      id: 'export-excel', type: 'button',
+      title: 'Download de beslistabel als Excel-bestand',
+    }, ['Exporteer naar Excel']);
+    exportBtn.addEventListener('click', () => downloadExcel(unique, variables));
+    $('results').appendChild(exportBtn);
 
     $('results').appendChild(renderDecisionTable(unique, variables));
   }
